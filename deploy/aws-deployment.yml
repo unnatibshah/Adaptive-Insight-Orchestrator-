@@ -1,0 +1,282 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: weather-mcp
+  template:
+    metadata:
+      labels:
+        app: weather-mcp
+    spec:
+      containers:
+        - name: weather-mcp
+          image: a2a-weather-mcp:latest
+          ports:
+            - containerPort: 9000
+          env:
+            - name: OPENWEATHER_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-keys
+                  key: openweather-key
+            - name: WEATHER_MCP_TRANSPORT
+              value: http
+            - name: WEATHER_MCP_HOST
+              value: 0.0.0.0
+            - name: WEATHER_MCP_PORT
+              value: "9000"
+            - name: WEATHER_MCP_SERVICE_NAME
+              value: weather-mcp
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: weather-mcp-service
+spec:
+  selector:
+    app: weather-mcp
+  ports:
+    - port: 9000
+      targetPort: 9000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: news-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: news-mcp
+  template:
+    metadata:
+      labels:
+        app: news-mcp
+    spec:
+      containers:
+        - name: news-mcp
+          image: a2a-news-mcp:latest
+          ports:
+            - containerPort: 9000
+          env:
+            - name: NEWS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: api-keys
+                  key: news-key
+            - name: NEWS_MCP_TRANSPORT
+              value: http
+            - name: NEWS_MCP_HOST
+              value: 0.0.0.0
+            - name: NEWS_MCP_PORT
+              value: "9000"
+            - name: NEWS_MCP_SERVICE_NAME
+              value: news-mcp
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: news-mcp-service
+spec:
+  selector:
+    app: news-mcp
+  ports:
+    - port: 9000
+      targetPort: 9000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: weather-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: weather-agent
+  template:
+    metadata:
+      labels:
+        app: weather-agent
+    spec:
+      containers:
+        - name: weather-agent
+          image: a2a-weather:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: WEATHER_MCP_URL
+              value: http://weather-mcp-service:9000/mcp
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: region
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: secret-access-key
+            - name: BEDROCK_MODEL_ID
+              value: "us.anthropic.claude-sonnet-4-20250514-v1:0"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: weather-service
+spec:
+  selector:
+    app: weather-agent
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: news-agent
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: news-agent
+  template:
+    metadata:
+      labels:
+        app: news-agent
+    spec:
+      containers:
+        - name: news-agent
+          image: a2a-news:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: NEWS_MCP_URL
+              value: http://news-mcp-service:9000/mcp
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: region
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: secret-access-key
+            - name: BEDROCK_MODEL_ID
+              value: "us.anthropic.claude-sonnet-4-20250514-v1:0"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: news-service
+spec:
+  selector:
+    app: news-agent
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orchestrator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orchestrator
+  template:
+    metadata:
+      labels:
+        app: orchestrator
+    spec:
+      containers:
+        - name: orchestrator
+          image: a2a-orchestrator:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: AGENTCORE_MODE
+              value: "runtime"
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: region
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: access-key-id
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: aws-credentials
+                  key: secret-access-key
+            - name: BEDROCK_MODEL_ID
+              value: "us.anthropic.claude-sonnet-4-20250514-v1:0"
+            - name: BEDROCK_AGENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: bedrock-agentcore
+                  key: agent-id
+            - name: BEDROCK_AGENT_ALIAS_ID
+              valueFrom:
+                secretKeyRef:
+                  name: bedrock-agentcore
+                  key: agent-alias-id
+            - name: AGENTCORE_MEMORY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: bedrock-agentcore-memory
+                  key: memory-id
+                  optional: true
+            - name: AGENTCORE_MEMORY_SESSION_ID
+              valueFrom:
+                secretKeyRef:
+                  name: bedrock-agentcore-memory
+                  key: session-id
+                  optional: true
+            - name: AGENTCORE_MEMORY_ACTOR_ID
+              valueFrom:
+                secretKeyRef:
+                  name: bedrock-agentcore-memory
+                  key: actor-id
+                  optional: true
+            - name: AGENTCORE_MEMORY_RETRIEVAL_CONFIG
+              valueFrom:
+                configMapKeyRef:
+                  name: bedrock-agentcore-memory
+                  key: retrieval-config.json
+                  optional: true
+            - name: WEATHER_AGENT_URL
+              value: http://weather-service:8000
+            - name: NEWS_AGENT_URL
+              value: http://news-service:8000
+            - name: PHOENIX_PROJECT
+              value: a2a-agentcore-prod
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orchestrator-service
+spec:
+  selector:
+    app: orchestrator
+  ports:
+    - port: 8000
+      targetPort: 8000

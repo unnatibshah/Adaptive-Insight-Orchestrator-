@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "name": "weather-mcp",
+  "description": "Model Context Protocol server that surfaces current weather data via OpenWeatherMap.",
+  "entry": {
+    "command": "python",
+    "args": ["mcp-servers/weather/server.py"],
+    "working_directory": ".",
+    "env": {
+      "OPENWEATHER_API_KEY": "${OPENWEATHER_API_KEY}",
+      "WEATHER_MCP_TRANSPORT": "http",
+      "WEATHER_MCP_HOST": "0.0.0.0",
+      "WEATHER_MCP_PORT": "9000",
+      "WEATHER_MCP_SERVICE_NAME": "weather-mcp"
+    }
+  },
+  "transport": {
+    "type": "http",
+    "url": "${WEATHER_MCP_URL:-http://weather-mcp-service:9000/mcp}"
+  },
+  "capabilities": {
+    "tools": ["get_weather"]
+  }
+}

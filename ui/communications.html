@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agent Communications Viewer</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #f4f4ff;
+            --fg: #111827;
+            --accent: #6366f1;
+            --accent-light: rgba(99, 102, 241, 0.16);
+        }
+
+        body {
+            margin: 0;
+            font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+        }
+
+        .layout {
+            width: min(960px, 100%);
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            gap: 16px;
+            box-sizing: border-box;
+        }
+
+        .top-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #fff;
+            padding: 12px 20px;
+            border-radius: 16px;
+            border: 1px solid #e0e7ff;
+            box-shadow: 0 10px 26px rgba(76, 81, 191, 0.14);
+        }
+
+        .top-nav .brand {
+            font-weight: 600;
+            font-size: 1.05rem;
+            text-decoration: none;
+            color: var(--fg);
+        }
+
+        .top-nav .nav-links {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .top-nav .nav-links a {
+            text-decoration: none;
+            color: #4b5563;
+            padding: 6px 14px;
+            border-radius: 999px;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .top-nav .nav-links a.active,
+        .top-nav .nav-links a:hover {
+            background: var(--accent-light);
+            color: var(--accent);
+        }
+
+        header {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.75rem;
+            font-weight: 600;
+        }
+
+        header p {
+            margin: 0;
+            color: #4b5563;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        button {
+            appearance: none;
+            border: none;
+            border-radius: 999px;
+            padding: 10px 18px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 8px 18px rgba(99, 102, 241, 0.25);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 24px rgba(99, 102, 241, 0.3);
+        }
+
+        .records {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .placeholder {
+            padding: 24px;
+            background: #fff;
+            border-radius: 16px;
+            border: 1px dashed #c7d2fe;
+            text-align: center;
+            color: #4b5563;
+            font-size: 1rem;
+        }
+
+        .record-card {
+            background: #fff;
+            border-radius: 16px;
+            border: 1px solid #e0e7ff;
+            box-shadow: 0 10px 28px rgba(99, 102, 241, 0.12);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .record-header {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .record-header h2 {
+            margin: 0;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .record-meta {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            color: #4c51bf;
+            font-size: 0.95rem;
+        }
+
+        .record-body p {
+            margin: 0 0 6px 0;
+            color: #374151;
+        }
+
+        .tag {
+            background: rgba(99, 102, 241, 0.1);
+            color: #4338ca;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+        }
+
+        details summary {
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        pre {
+            background: #f5f7ff;
+            padding: 10px;
+            border-radius: 12px;
+            overflow-x: auto;
+        }
+
+        .warning-box {
+            padding: 12px;
+            border-radius: 12px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+        }
+
+        .invoked-agents {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .agent-pill {
+            background: rgba(59, 130, 246, 0.15);
+            color: #1d4ed8;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 0.85rem;
+        }
+
+        @media (max-width: 640px) {
+            .layout {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <nav class="top-nav">
+            <a href="communications.html" class="brand">📡 Agent Communications</a>
+            <div class="nav-links">
+                <a href="index.html">Orchestrator</a>
+                <a href="weather.html">Weather</a>
+                <a href="news.html">News</a>
+                <a href="communications.html" class="active">Agent Communications</a>
+            </div>
+        </nav>
+
+        <header>
+            <h1>Conversation Logs</h1>
+            <p>Review stored orchestrator and agent conversations captured from the chat UIs. Clear storage to reset the view.</p>
+        </header>
+
+        <div class="controls">
+            <button id="clearStorageBtn">Clear stored communications</button>
+        </div>
+
+        <section id="records" class="records"></section>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'a2a-agentcore-transcripts';
+        const recordsContainer = document.getElementById('records');
+        const clearStorageBtn = document.getElementById('clearStorageBtn');
+
+        function readTranscripts() {
+            try {
+                return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            } catch (error) {
+                console.warn('Unable to read transcripts', error);
+                return [];
+            }
+        }
+
+        function renderRecords() {
+            const records = readTranscripts();
+            recordsContainer.innerHTML = '';
+
+            if (!records.length) {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'placeholder';
+                placeholder.innerHTML = 'No stored communications yet. Chat with the orchestrator, weather, or news agents to populate history.';
+                recordsContainer.appendChild(placeholder);
+                return;
+            }
+
+            records
+                .slice()
+                .reverse()
+                .forEach((record, index) => {
+                    const card = document.createElement('article');
+                    card.className = 'record-card';
+
+                    const header = document.createElement('div');
+                    header.className = 'record-header';
+                    const title = document.createElement('h2');
+                    title.textContent = record.query || 'Unnamed request';
+                    header.appendChild(title);
+
+                    const meta = document.createElement('div');
+                    meta.className = 'record-meta';
+                    const sourceTag = document.createElement('span');
+                    sourceTag.className = 'tag';
+                    sourceTag.textContent = (record.source || 'orchestrator').toUpperCase();
+                    meta.appendChild(sourceTag);
+
+                    const timestamp = document.createElement('span');
+                    const date = record.timestamp ? new Date(record.timestamp) : new Date();
+                    timestamp.textContent = date.toLocaleString();
+                    meta.appendChild(timestamp);
+
+                    if (record.pattern) {
+                        const pattern = document.createElement('span');
+                        pattern.textContent = record.pattern;
+                        meta.appendChild(pattern);
+                    }
+
+                    header.appendChild(meta);
+                    card.appendChild(header);
+
+                    const body = document.createElement('div');
+                    body.className = 'record-body';
+
+                    if (record.response) {
+                        const response = document.createElement('p');
+                        response.innerHTML = `<strong>Response:</strong> ${record.response}`;
+                        body.appendChild(response);
+                    }
+
+                    if (record.invokedAgents && record.invokedAgents.length) {
+                        const agentsLabel = document.createElement('p');
+                        agentsLabel.innerHTML = '<strong>Invoked agents:</strong>';
+                        body.appendChild(agentsLabel);
+
+                        const agentList = document.createElement('div');
+                        agentList.className = 'invoked-agents';
+                        record.invokedAgents.forEach((agent) => {
+                            const pill = document.createElement('span');
+                            pill.className = 'agent-pill';
+                            pill.textContent = agent;
+                            agentList.appendChild(pill);
+                        });
+                        body.appendChild(agentList);
+                    }
+
+                    if (record.warnings && record.warnings.length) {
+                        const warningBox = document.createElement('div');
+                        warningBox.className = 'warning-box';
+                        const title = document.createElement('strong');
+                        title.textContent = 'Warnings';
+                        warningBox.appendChild(title);
+
+                        const list = document.createElement('ul');
+                        list.style.paddingLeft = '18px';
+                        record.warnings.forEach((warning) => {
+                            if (!warning) return;
+                            const item = document.createElement('li');
+                            item.textContent = warning;
+                            list.appendChild(item);
+                        });
+                        warningBox.appendChild(list);
+                        body.appendChild(warningBox);
+                    }
+
+                    if (record.results && Object.keys(record.results).length) {
+                        const resultsDetails = document.createElement('details');
+                        const summary = document.createElement('summary');
+                        summary.textContent = 'Results payload';
+                        resultsDetails.appendChild(summary);
+
+                        const pre = document.createElement('pre');
+                        pre.textContent = JSON.stringify(record.results, null, 2);
+                        resultsDetails.appendChild(pre);
+                        body.appendChild(resultsDetails);
+                    }
+
+                    if (record.toolOutputs && record.toolOutputs.length) {
+                        const details = document.createElement('details');
+                        const summary = document.createElement('summary');
+                        summary.textContent = 'Tool outputs';
+                        details.appendChild(summary);
+
+                        record.toolOutputs.forEach((tool, idx) => {
+                            const label = document.createElement('div');
+                            label.style.marginTop = '12px';
+                            label.style.fontWeight = '600';
+                            label.textContent = `Result ${idx + 1}`;
+                            details.appendChild(label);
+
+                            const pre = document.createElement('pre');
+                            pre.textContent = JSON.stringify(tool, null, 2);
+                            details.appendChild(pre);
+                        });
+
+                        body.appendChild(details);
+                    }
+
+                    card.appendChild(body);
+                    recordsContainer.appendChild(card);
+                });
+        }
+
+        clearStorageBtn.addEventListener('click', () => {
+            localStorage.removeItem(STORAGE_KEY);
+            renderRecords();
+        });
+
+        renderRecords();
+    </script>
+</body>
+</html>

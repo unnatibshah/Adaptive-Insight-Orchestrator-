@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>A2A AgentCore Chat</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+            --bg: #f5f7fb;
+            --fg: #1f2933;
+            --accent: #2563eb;
+            --accent-light: #e0e7ff;
+            --assistant-bg: #f0f4ff;
+            --user-bg: #dcfce7;
+            --system-bg: #fee2e2;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--fg);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+        }
+
+        .chat-shell {
+            width: min(960px, 100%);
+            display: flex;
+            flex-direction: column;
+            padding: 24px;
+            box-sizing: border-box;
+            gap: 16px;
+        }
+
+        .top-nav {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            background: #fff;
+            border-radius: 16px;
+            border: 1px solid #e5e7eb;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+        }
+
+        .top-nav .brand {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: var(--fg);
+            text-decoration: none;
+        }
+
+        .top-nav .nav-links {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .top-nav .nav-links a {
+            text-decoration: none;
+            color: #4b5563;
+            padding: 6px 14px;
+            border-radius: 999px;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .top-nav .nav-links a.active,
+        .top-nav .nav-links a:hover {
+            background: var(--accent-light);
+            color: var(--accent);
+        }
+
+        header {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        header p {
+            margin: 0;
+            color: #5f6b7a;
+        }
+
+        .chat-panel {
+            flex: 1 1 auto;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chat-content {
+            display: flex;
+            flex: 1;
+            padding: 24px;
+            gap: 20px;
+            background: #f8fafc;
+        }
+
+        .chat-messages {
+            flex: 1 1 auto;
+            min-height: 360px;
+            overflow-y: auto;
+            padding-right: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 14px 16px;
+            border-radius: 14px;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: var(--user-bg);
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+            background: var(--assistant-bg);
+        }
+
+        .message.system {
+            align-self: center;
+            background: var(--system-bg);
+        }
+
+        .message-header {
+            font-weight: 600;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .message-pattern {
+            margin-top: 6px;
+            font-size: 0.85rem;
+            color: #475569;
+        }
+
+        .message-meta {
+            margin-top: 8px;
+            font-size: 0.9rem;
+            color: #475569;
+        }
+
+        .tool-output {
+            margin-top: 12px;
+            padding: 12px;
+            border-radius: 12px;
+            background: #fff;
+            border: 1px solid #e2e8f0;
+        }
+
+        .tool-output summary {
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .status-bar {
+            padding: 10px 16px;
+            background: #fff;
+            border-top: 1px solid #e5e7eb;
+            font-size: 0.95rem;
+            color: #64748b;
+            min-height: 24px;
+        }
+
+        .composer {
+            padding: 16px;
+            background: #fff;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .composer textarea {
+            resize: none;
+            min-height: 90px;
+            border: 1px solid #cbd5f5;
+            border-radius: 12px;
+            padding: 12px 14px;
+            font-size: 1rem;
+            font-family: inherit;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .composer textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.18);
+        }
+
+        .composer-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        button {
+            appearance: none;
+            border: none;
+            border-radius: 999px;
+            padding: 10px 18px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 8px 16px rgba(37, 99, 235, 0.25);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
+        }
+
+        .btn-secondary {
+            background: #e2e8f0;
+            color: #1f2933;
+        }
+
+        .warning-list {
+            margin-top: 10px;
+            padding: 12px;
+            border-radius: 12px;
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+        }
+
+        .warning-list strong {
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .sample-prompts {
+            width: 220px;
+            flex: 0 0 220px;
+            background: #fff;
+            border-radius: 14px;
+            border: 1px solid #e2e8f0;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-self: flex-start;
+            box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.04);
+            max-height: 100%;
+            overflow-y: auto;
+        }
+
+        .sample-prompts h3 {
+            margin: 0;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #1d4ed8;
+        }
+
+        .sample-prompts button {
+            background: #f8fafc;
+            border: 1px solid #dbeafe;
+            color: #1d4ed8;
+            border-radius: 10px;
+            padding: 8px 10px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .sample-prompts button:hover {
+            background: #1d4ed8;
+            color: #fff;
+            box-shadow: 0 6px 14px rgba(37, 99, 235, 0.2);
+        }
+
+        .sample-prompts button:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
+        }
+
+        @media (max-width: 640px) {
+            .chat-shell {
+                padding: 16px;
+            }
+
+            .chat-content {
+                flex-direction: column;
+            }
+
+            .sample-prompts {
+                width: 100%;
+                flex: none;
+            }
+
+            .message {
+                max-width: 100%;
+            }
+
+            .composer textarea {
+                min-height: 72px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-shell">
+        <nav class="top-nav">
+            <a href="index.html" class="brand">🧠 AgentCore Orchestrator</a>
+            <div class="nav-links">
+                <a href="index.html" class="active">Chat</a>
+                <a href="weather.html">Weather</a>
+                <a href="news.html">News</a>
+                <a href="communications.html">Agent Communications</a>
+            </div>
+        </nav>
+
+        <header>
+            <h1>Chat with the Orchestrator</h1>
+            <p>Ask for weather, news, or both. The orchestrator dynamically chooses LangGraph, Strands, or Bedrock AgentCore.</p>
+        </header>
+
+        <div class="chat-panel">
+            <div class="chat-content">
+                <div id="messages" class="chat-messages"></div>
+                <aside class="sample-prompts" id="samplePrompts">
+                    <h3>Sample prompts</h3>
+                </aside>
+            </div>
+            <div id="status" class="status-bar"></div>
+            <form id="chatForm" class="composer">
+                <textarea id="chatInput" placeholder="Type your question..."></textarea>
+                <div class="composer-actions">
+                    <button type="button" id="clearBtn" class="btn-secondary">Clear conversation</button>
+                    <button type="submit" class="btn-primary">Send</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const STORAGE_KEY = 'a2a-agentcore-transcripts';
+        const messagesEl = document.getElementById('messages');
+        const formEl = document.getElementById('chatForm');
+        const inputEl = document.getElementById('chatInput');
+        const statusEl = document.getElementById('status');
+        const clearBtn = document.getElementById('clearBtn');
+        const promptsEl = document.getElementById('samplePrompts');
+
+        const history = [];
+        const SAMPLE_PROMPTS = [
+            'Summarize today\'s weather in Seattle and top tech headlines.',
+            'What\'s the forecast for Tokyo tomorrow?',
+            'Share the latest renewable energy news.',
+            'Give me weather and news updates for New York City.',
+        ];
+
+        function scrollToBottom() {
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function setStatus(text) {
+            statusEl.textContent = text || '';
+        }
+
+        function createMessageElement(role, content) {
+            const wrapper = document.createElement('div');
+            wrapper.className = `message ${role}`;
+
+            if (role !== 'system') {
+                const header = document.createElement('div');
+                header.className = 'message-header';
+                header.textContent = role === 'user' ? 'You' : 'Assistant';
+                wrapper.appendChild(header);
+            }
+
+            const body = document.createElement('div');
+            body.className = 'message-body';
+            body.textContent = content;
+            wrapper.appendChild(body);
+
+            return wrapper;
+        }
+
+        function renderList(items, label) {
+            if (!items || !items.length) {
+                return null;
+            }
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'message-meta';
+            wrapper.textContent = `${label}: ${items.join(', ')}`;
+            return wrapper;
+        }
+
+        function appendMessage(role, content, options = {}) {
+            const block = createMessageElement(role, content);
+
+            if (options.pattern) {
+                const pattern = document.createElement('div');
+                pattern.className = 'message-pattern';
+                pattern.textContent = options.pattern;
+                block.appendChild(pattern);
+            }
+
+            const agentsMeta = renderList(options.invokedAgents, 'Invoked agents');
+            if (agentsMeta) {
+                block.appendChild(agentsMeta);
+            }
+
+            if (options.toolOutputs && options.toolOutputs.length) {
+                const container = document.createElement('div');
+                container.className = 'tool-output';
+                const summary = document.createElement('details');
+                summary.open = false;
+                const title = document.createElement('summary');
+                title.textContent = 'Tool outputs';
+                summary.appendChild(title);
+
+                options.toolOutputs.forEach((tool, index) => {
+                    const label = document.createElement('div');
+                    label.style.marginTop = '12px';
+                    label.style.fontWeight = '600';
+                    label.textContent = `Result ${index + 1}`;
+
+                    const pre = document.createElement('pre');
+                    pre.style.background = '#f8fafc';
+                    pre.style.padding = '8px';
+                    pre.style.borderRadius = '10px';
+                    pre.style.overflowX = 'auto';
+                    pre.textContent = JSON.stringify(tool, null, 2);
+
+                    summary.appendChild(label);
+                    summary.appendChild(pre);
+                });
+
+                container.appendChild(summary);
+                block.appendChild(container);
+            }
+
+            if (options.warnings && options.warnings.length) {
+                const warningBox = document.createElement('div');
+                warningBox.className = 'warning-list';
+                const title = document.createElement('strong');
+                title.textContent = 'Warnings';
+                warningBox.appendChild(title);
+
+                const list = document.createElement('ul');
+                list.style.paddingLeft = '18px';
+                options.warnings.forEach((warning) => {
+                    if (!warning) return;
+                    const item = document.createElement('li');
+                    item.textContent = warning;
+                    list.appendChild(item);
+                });
+                warningBox.appendChild(list);
+                block.appendChild(warningBox);
+            }
+
+            messagesEl.appendChild(block);
+            scrollToBottom();
+        }
+
+        async function invokeOrchestrator(text) {
+            const payload = {
+                query: text,
+                history: history,
+            };
+
+            const response = await fetch('http://localhost:8000/orchestrate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+            });
+
+            if (!response.ok) {
+                const errorPayload = await response.json().catch(() => ({}));
+                throw new Error(errorPayload.detail || 'Request failed');
+            }
+
+            return response.json();
+        }
+
+        function readTranscripts() {
+            try {
+                return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            } catch (error) {
+                console.warn('Unable to read transcripts', error);
+                return [];
+            }
+        }
+
+        function saveTranscript(entry) {
+            const transcripts = readTranscripts();
+            transcripts.push(entry);
+            const trimmed = transcripts.slice(-25);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+        }
+
+        formEl.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const text = inputEl.value.trim();
+            if (!text) {
+                return;
+            }
+
+            inputEl.value = '';
+            appendMessage('user', text);
+            history.push({ role: 'user', content: text });
+
+            try {
+                setStatus('⏳ Orchestrating conversation...');
+                const payload = await invokeOrchestrator(text);
+                const result = payload.orchestration_result || {};
+                appendMessage('assistant', result.final_response || 'No response generated.', {
+                    invokedAgents: result.invoked_agents || [],
+                    toolOutputs: result.tool_outputs || [],
+                    warnings: result.warnings || [],
+                    pattern: payload.pattern || '',
+                });
+                history.push({ role: 'assistant', content: result.final_response || '' });
+
+                saveTranscript({
+                    timestamp: new Date().toISOString(),
+                    source: 'orchestrator',
+                    query: text,
+                    response: result.final_response || '',
+                    invokedAgents: result.invoked_agents || [],
+                    toolOutputs: result.tool_outputs || [],
+                    mode: result.mode || '',
+                    pattern: payload.pattern || '',
+                    results: result.results || {},
+                    warnings: result.warnings || [],
+                });
+
+                setStatus(payload.pattern ? `✨ ${payload.pattern}` : '✅ Response received');
+            } catch (error) {
+                appendMessage('system', `⚠️ ${error.message}`);
+                setStatus('⚠️ Orchestration failed');
+            } finally {
+                setTimeout(() => setStatus(''), 2500);
+            }
+        });
+
+        clearBtn.addEventListener('click', () => {
+            history.splice(0, history.length);
+            messagesEl.innerHTML = '';
+            appendMessage('system', 'Conversation cleared.');
+            inputEl.focus();
+        });
+
+        appendMessage('assistant', 'Hello! Ask me about the weather, the latest news, or both.');
+        inputEl.focus();
+
+        SAMPLE_PROMPTS.forEach((prompt) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.textContent = prompt;
+            button.addEventListener('click', () => {
+                inputEl.value = prompt;
+                inputEl.focus();
+            });
+            promptsEl.appendChild(button);
+        });
+    </script>
+</body>
+</html>

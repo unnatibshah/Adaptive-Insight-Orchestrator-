@@ -1,0 +1,52 @@
+{
+  "agent_id": "news-agent",
+  "name": "news-agent",
+  "version": "1.0.0",
+  "description": "News articles provider using NewsAPI",
+  "url": "http://news-agent:8000",
+  "default_input_modes": ["application/json"],
+  "default_output_modes": ["application/json"],
+  "skills": [
+    {
+      "id": "get_news",
+      "name": "Get News",
+      "description": "Retrieve the most recent articles filtered by a search topic",
+      "tags": ["news"]
+    }
+  ],
+  "capabilities": {},
+  "capability_specs": [
+    {
+      "name": "get_news",
+      "description": "Get latest news articles",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {"type": "string", "description": "Search query"}
+        },
+        "required": ["query"]
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "articles": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "title": {"type": "string"},
+                "description": {"type": "string"},
+                "url": {"type": "string"}
+              }
+            }
+          }
+        }
+      }
+    }
+  ],
+  "a2a_communication": {
+    "protocol": "http",
+    "endpoints": [{"path": "/news", "method": "POST", "capability": "get_news"}],
+    "message_format": "json"
+  }
+}

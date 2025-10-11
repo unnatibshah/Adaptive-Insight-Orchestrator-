@@ -1,0 +1,132 @@
+services:
+  weather-mcp:
+    build:
+      context: .
+      dockerfile: mcp-servers/weather/Dockerfile
+    environment:
+      - OPENWEATHER_API_KEY=${OPENWEATHER_API_KEY}
+      - WEATHER_MCP_TRANSPORT=http
+      - WEATHER_MCP_HOST=0.0.0.0
+      - WEATHER_MCP_PORT=9000
+      - WEATHER_MCP_SERVICE_NAME=weather-mcp
+    ports:
+      - "9001:9000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agent-network
+
+  news-mcp:
+    build:
+      context: .
+      dockerfile: mcp-servers/news/Dockerfile
+    environment:
+      - NEWS_API_KEY=${NEWS_API_KEY}
+      - NEWS_MCP_TRANSPORT=http
+      - NEWS_MCP_HOST=0.0.0.0
+      - NEWS_MCP_PORT=9000
+      - NEWS_MCP_SERVICE_NAME=news-mcp
+    ports:
+      - "9002:9000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - agent-network
+
+  weather-agent:
+    build:
+      context: .
+      dockerfile: agents/weather/Dockerfile
+    environment:
+      - WEATHER_MCP_URL=http://weather-mcp:9000/mcp
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-us.anthropic.claude-sonnet-4-20250514-v1:0}
+    ports:
+      - "8001:8000"
+    depends_on:
+      weather-mcp:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - agent-network
+
+  news-agent:
+    build:
+      context: .
+      dockerfile: agents/news/Dockerfile
+    environment:
+      - NEWS_MCP_URL=http://news-mcp:9000/mcp
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-us.anthropic.claude-sonnet-4-20250514-v1:0}
+    ports:
+      - "8002:8000"
+    depends_on:
+      news-mcp:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - agent-network
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: agents/orchestrator/Dockerfile
+    environment:
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AGENTCORE_MODE=${AGENTCORE_MODE:-local}
+      - BEDROCK_MODEL_ID=${BEDROCK_MODEL_ID:-us.anthropic.claude-sonnet-4-20250514-v1:0}
+      - BEDROCK_AGENT_ID=${BEDROCK_AGENT_ID:-}
+      - BEDROCK_AGENT_ALIAS_ID=${BEDROCK_AGENT_ALIAS_ID:-}
+      - PHOENIX_PROJECT_NAME=${PHOENIX_PROJECT_NAME}
+      - PHOENIX_COLLECTOR_ENDPOINT=${PHOENIX_COLLECTOR_ENDPOINT}
+      - PHOENIX_API_KEY=${PHOENIX_API_KEY}
+      - WEATHER_AGENT_URL=http://weather-agent:8000
+      - NEWS_AGENT_URL=http://news-agent:8000
+      - AGENTCORE_MEMORY_ID=${AGENTCORE_MEMORY_ID:-}
+      - AGENTCORE_MEMORY_SESSION_ID=${AGENTCORE_MEMORY_SESSION_ID:-}
+      - AGENTCORE_MEMORY_ACTOR_ID=${AGENTCORE_MEMORY_ACTOR_ID:-}
+      - AGENTCORE_MEMORY_RETRIEVAL_CONFIG=${AGENTCORE_MEMORY_RETRIEVAL_CONFIG:-}
+    ports:
+      - "8000:8000"
+    depends_on:
+      weather-agent:
+        condition: service_healthy
+      news-agent:
+        condition: service_healthy
+    networks:
+      - agent-network
+
+  ui:
+    image: python:3.13-slim
+    working_dir: /app
+    volumes:
+      - ./ui:/app
+    ports:
+      - "3000:3000"
+    command: python server.py
+    networks:
+      - agent-network
+
+networks:
+  agent-network:
+    driver: bridge
