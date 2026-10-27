@@ -4,214 +4,353 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Agent Orchestrator · Unnati Shah</title>
-<meta name="description" content="A LangGraph planner fans out to MCP-backed agents in parallel and answers from what they return. Watch every step live.">
+<meta name="description" content="Ask once and watch a LangGraph planner fan out to weather, news and knowledge agents over MCP, then write a grounded answer.">
 <link rel="icon" href="https://unnatibshah.github.io/favicon.ico" sizes="any">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#f3f0e8;--card:rgba(250,248,243,.85);--ink:#16181c;--mute:#55585e;--faint:#9a9ca0;--line:rgba(22,24,28,.09);--line2:rgba(22,24,28,.22);--acc:#ff7a90;--acc-ink:color-mix(in oklab,var(--acc) 55%,#000);--acc2:#5b4bc4;--bad:#b4472f;color-scheme:light}
-@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#1a1d22;--card:rgba(36,40,47,.8);--ink:#e9edf0;--mute:#9aa4ae;--faint:#5b6570;--line:rgba(233,237,240,.08);--line2:rgba(233,237,240,.18);--acc-ink:var(--acc);--acc2:#a395ff;--bad:#ff8a6b;color-scheme:dark}}
-:root[data-theme=dark]{--bg:#1a1d22;--card:rgba(36,40,47,.8);--ink:#e9edf0;--mute:#9aa4ae;--faint:#5b6570;--line:rgba(233,237,240,.08);--line2:rgba(233,237,240,.18);--acc-ink:var(--acc);--acc2:#a395ff;--bad:#ff8a6b;color-scheme:dark}
+:root{
+  --bg:#fbf8f3;--paper:#ffffff;--ink:#1f1c2c;--mute:#6c6879;--faint:#a5a1b0;--line:rgba(31,28,44,.09);--line2:rgba(31,28,44,.16);
+  --plan:#7c5cff;--weather:#1f9fe0;--news:#f2604f;--knowledge:#1fa36c;--synth:#ee9b1c;
+  --shadow:0 1px 2px rgba(31,28,44,.04),0 8px 30px rgba(31,28,44,.06);
+  color-scheme:light;
+}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:'Space Grotesk',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif;font-size:15px;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:-20vh -10vw auto;height:90vh;z-index:-1;pointer-events:none;
+  background:radial-gradient(40vw 30vh at 12% 20%,color-mix(in oklab,var(--plan) 14%,transparent),transparent 70%),
+             radial-gradient(35vw 28vh at 85% 10%,color-mix(in oklab,var(--weather) 13%,transparent),transparent 70%),
+             radial-gradient(30vw 25vh at 60% 60%,color-mix(in oklab,var(--synth) 10%,transparent),transparent 70%)}
 a{color:inherit}
-.mono{font-family:'Space Mono',monospace}
-.wrap{max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,48px)}
-header{display:flex;justify-content:space-between;align-items:center;gap:16px;height:72px;font-size:12px}
-header nav{display:flex;gap:18px}
-header a{text-decoration:none;color:var(--mute)}
-header a:hover{color:var(--acc-ink)}
-.eyebrow{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--acc-ink)}
-h1{margin:14px 0 16px;font-weight:500;font-size:clamp(40px,6vw,80px);letter-spacing:-.045em;line-height:.95}
-.lede{margin:0;max-width:46rem;font-size:17px;line-height:1.6;color:var(--mute)}
-form{margin-top:40px;display:flex;gap:10px;align-items:center;border:1px solid var(--line2);border-radius:999px;padding:8px 8px 8px 20px;background:var(--card)}
-form:focus-within{border-color:var(--acc-ink)}
-form>span{color:var(--acc-ink)}
-input{flex:1;min-width:0;background:none;border:0;outline:none;font-family:'Space Mono',monospace;font-size:15px;color:var(--ink)}
-button{font:inherit;cursor:pointer}
-form button{border:0;border-radius:999px;padding:10px 18px;background:var(--ink);color:var(--bg);font-family:'Space Mono',monospace;font-size:12px;white-space:nowrap}
-form button:disabled{opacity:.5;cursor:default}
-.examples{margin-top:14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-.examples .label{font-size:11px;color:var(--faint);margin-right:4px}
-.chip{border:1px solid var(--line2);background:none;border-radius:999px;padding:6px 12px;font-family:'Space Mono',monospace;font-size:11px;color:var(--mute);transition:border-color .2s,color .2s}
-.chip:hover{border-color:var(--acc-ink);color:var(--acc-ink)}
+.mono{font-family:'JetBrains Mono',monospace}
+.wrap{max-width:1180px;margin:0 auto;padding:0 clamp(16px,4vw,40px)}
 
-/* graph */
-.graph{margin-top:44px;display:grid;grid-template-columns:1fr 40px 1.3fr 40px 1fr;align-items:center;gap:0}
-.agents{display:flex;flex-direction:column;gap:10px}
-.edge{height:1px;background:var(--line2);position:relative}
-.edge.on{background:linear-gradient(90deg,var(--acc-ink),var(--acc2))}
-.node{border:1px solid var(--line2);border-radius:12px;background:var(--card);padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;transition:border-color .3s,opacity .3s,box-shadow .3s}
-.node b{font-weight:500;font-size:15px}
-.node small{display:block;font-family:'Space Mono',monospace;font-size:10px;color:var(--faint);margin-top:3px}
-.node .st{font-family:'Space Mono',monospace;font-size:10px;color:var(--faint);white-space:nowrap}
-.node.run{border-color:var(--acc-ink);box-shadow:0 0 0 4px color-mix(in oklab,var(--acc) 15%,transparent)}
-.node.run .st{color:var(--acc-ink);animation:pulse 1s ease-in-out infinite}
-.node.done{border-color:var(--acc-ink)}
-.node.done .st{color:var(--acc-ink)}
-.node.fail{border-color:var(--bad)}
-.node.fail .st{color:var(--bad)}
-.node.skip{opacity:.45}
-@keyframes pulse{50%{opacity:.35}}
-@media (max-width:820px){.graph{grid-template-columns:1fr}.edge{width:1px;height:18px;margin:0 auto}}
+/* top bar */
+.top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:22px 0;font-size:13px}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;text-decoration:none}
+.brand i{width:26px;height:26px;border-radius:8px;background:conic-gradient(from 200deg,var(--plan),var(--weather),var(--knowledge),var(--synth),var(--news),var(--plan));box-shadow:inset 0 0 0 5px var(--bg)}
+.top nav{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.top nav a{text-decoration:none;color:var(--mute);padding:6px 10px;border-radius:999px}
+.top nav a:hover{background:var(--paper);color:var(--ink)}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:6px 11px;border-radius:999px;background:var(--paper);border:1px solid var(--line);color:var(--mute);font-size:12px}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--faint)}
+.pill.ready::before{background:var(--knowledge)}
+.pill.waking::before{background:var(--synth);animation:blink 1s infinite}
+.pill.down::before{background:var(--news)}
+@keyframes blink{50%{opacity:.25}}
 
-/* output */
-.out{margin-top:28px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:14px;align-items:start}
-@media (max-width:900px){.out{grid-template-columns:1fr}}
-.panel{border:1px solid var(--line2);border-radius:14px;background:var(--card);overflow:hidden}
-.panel h2{margin:0;padding:12px 18px;border-bottom:1px solid var(--line);font-family:'Space Mono',monospace;font-size:11px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);display:flex;justify-content:space-between;gap:12px}
-.answer{padding:18px;font-size:17px;line-height:1.6;white-space:pre-wrap;min-height:120px}
-.answer.empty{font-size:13px;color:var(--faint);font-family:'Space Mono',monospace}
-.answer.err{color:var(--bad);font-size:14px}
-.meta{padding:12px 18px;border-top:1px dashed var(--line2);font-family:'Space Mono',monospace;font-size:11px;color:var(--mute);display:flex;flex-wrap:wrap;gap:6px 16px}
-.trace{margin:0;padding:8px 0;list-style:none;font-family:'Space Mono',monospace;font-size:12px;max-height:520px;overflow:auto}
-.trace li{padding:7px 18px;display:grid;grid-template-columns:62px 122px minmax(0,1fr);gap:10px;align-items:baseline}
-.trace .t{color:var(--faint)}
-.trace .k{color:var(--acc-ink)}
-.trace .k.fail{color:var(--bad)}
-.trace .d{color:var(--mute);overflow-wrap:anywhere}
-.trace details summary{cursor:pointer;color:var(--mute);list-style:none}
-.trace details summary::-webkit-details-marker{display:none}
-.trace details summary::before{content:'▸ ';color:var(--faint)}
-.trace details[open] summary::before{content:'▾ '}
-.trace pre{margin:8px 0 2px;padding:10px;border-radius:8px;background:color-mix(in oklab,var(--ink) 5%,transparent);font-size:11px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere;max-height:260px;overflow:auto;color:var(--ink)}
-footer{margin:72px 0 48px;padding-top:28px;border-top:1px solid var(--line);display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:24px;font-size:14px;line-height:1.6;color:var(--mute)}
-footer h3{margin:0 0 8px;font-family:'Space Mono',monospace;font-size:11px;font-weight:400;letter-spacing:.06em;text-transform:uppercase;color:var(--faint)}
-footer p{margin:0}
+/* hero */
+.hero{text-align:center;padding:clamp(28px,6vh,64px) 0 8px}
+.kicker{display:inline-flex;gap:8px;align-items:center;font-size:12px;color:var(--mute);background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:6px 12px}
+.kicker b{font-weight:500;color:var(--plan)}
+h1{font-family:'Instrument Serif',serif;font-weight:400;font-size:clamp(44px,7.4vw,92px);line-height:.98;letter-spacing:-.02em;margin:18px 0 14px}
+h1 em{font-style:italic;background:linear-gradient(90deg,var(--plan),var(--weather) 45%,var(--knowledge));-webkit-background-clip:text;background-clip:text;color:transparent;padding-right:.06em}
+.sub{max-width:40rem;margin:0 auto;color:var(--mute);font-size:17px;line-height:1.6}
+
+/* ask */
+.ask{max-width:760px;margin:30px auto 0;position:relative}
+.ask form{display:flex;align-items:center;gap:8px;background:var(--paper);border-radius:20px;padding:8px 8px 8px 20px;box-shadow:var(--shadow);border:1.5px solid transparent;
+  background-image:linear-gradient(var(--paper),var(--paper)),linear-gradient(90deg,color-mix(in oklab,var(--plan) 45%,#fff),color-mix(in oklab,var(--weather) 45%,#fff),color-mix(in oklab,var(--synth) 45%,#fff));
+  background-origin:border-box;background-clip:padding-box,border-box}
+.ask input{flex:1;min-width:0;border:0;outline:0;background:none;font:inherit;font-size:17px;color:var(--ink);padding:12px 0}
+.ask input::placeholder{color:var(--faint)}
+.ask form button{border:0;cursor:pointer;font:inherit;font-weight:500;color:#fff;background:var(--ink);border-radius:14px;padding:13px 20px;white-space:nowrap;transition:transform .15s}
+.ask form button:hover{transform:translateY(-1px)}
+.ask form button:disabled{opacity:.45;cursor:default;transform:none}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:14px}
+.chip{border:1px solid var(--line);background:color-mix(in oklab,var(--paper) 70%,transparent);border-radius:999px;padding:7px 13px;font:inherit;font-size:13px;color:var(--mute);cursor:pointer;transition:all .2s}
+.chip:hover{color:var(--ink);border-color:var(--line2);background:var(--paper)}
+
+/* stage */
+.stage{margin:44px 0 0;background:var(--paper);border-radius:28px;box-shadow:var(--shadow);padding:18px 18px 8px;position:relative;overflow:hidden}
+.stage::after{content:"";position:absolute;inset:0;pointer-events:none;background-image:radial-gradient(var(--line) 1px,transparent 1px);background-size:22px 22px;opacity:.8;mask-image:linear-gradient(#000,transparent 85%)}
+.stage svg{display:block;width:100%;height:auto;position:relative;z-index:1}
+.stage .path{fill:none;stroke:var(--line2);stroke-width:1.5;stroke-dasharray:4 6;transition:stroke .4s,opacity .4s}
+.stage .path.lit{stroke-dasharray:none;stroke-width:2}
+.node .disc{fill:var(--paper);stroke:var(--line2);stroke-width:1.5;transition:all .35s}
+.node .halo{fill:currentColor;opacity:0;transition:opacity .35s}
+.node .ring{fill:none;stroke:currentColor;stroke-width:2.5;stroke-dasharray:18 12;opacity:0;transform-box:fill-box;transform-origin:center}
+.node .icon{stroke:var(--faint);fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;transition:stroke .35s}
+.node .title{font:600 14px Inter,sans-serif;fill:var(--ink)}
+.node .stat{font:500 11px 'JetBrains Mono',monospace;fill:var(--faint)}
+.node.run .ring{opacity:1;animation:spin 1.4s linear infinite}
+.node.run .halo,.node.done .halo{opacity:.12}
+.node.run .disc,.node.done .disc{stroke:currentColor}
+.node.run .icon,.node.done .icon{stroke:currentColor}
+.node.done .stat{fill:currentColor}
+.node.fail .disc{stroke:var(--news)}
+.node.fail .stat{fill:var(--news)}
+.node.skip{opacity:.32}
+@keyframes spin{to{transform:rotate(360deg)}}
+.caption{position:relative;z-index:1;text-align:center;font-size:13px;color:var(--mute);padding:4px 0 12px;min-height:30px}
+.caption b{font-weight:500;color:var(--ink)}
+
+/* results */
+.results{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:18px;margin-top:18px;align-items:start}
+@media (max-width:900px){.results{grid-template-columns:1fr}}
+.card{background:var(--paper);border-radius:22px;box-shadow:var(--shadow);padding:22px 24px;position:relative}
+.label{font-size:12px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);display:flex;justify-content:space-between;gap:12px;margin-bottom:12px}
+.answer{font-family:'Instrument Serif',serif;font-size:clamp(22px,2.4vw,27px);line-height:1.35;white-space:pre-wrap;min-height:100px}
+.answer.empty{font-family:Inter,sans-serif;font-size:15px;color:var(--faint)}
+.answer.err{font-family:Inter,sans-serif;font-size:15px;color:var(--news)}
+.answer.typing::after{content:"▍";color:var(--synth);animation:blink 1s infinite}
+.grounding{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px;padding-top:14px;border-top:1px dashed var(--line2);font-size:12px;color:var(--mute)}
+.tag{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:999px;background:color-mix(in oklab,var(--c,#888) 10%,transparent);color:color-mix(in oklab,var(--c,#888) 75%,#000)}
+.tag::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--c,#888)}
+.stack{display:flex;flex-direction:column;gap:14px}
+.res{border-left:3px solid var(--c);padding:16px 18px;border-radius:18px;background:var(--paper);box-shadow:var(--shadow);animation:rise .45s cubic-bezier(.2,.8,.2,1)}
+@keyframes rise{from{opacity:0;transform:translateY(10px)}}
+.res h3{margin:0 0 10px;font-size:12px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--c);display:flex;justify-content:space-between;gap:10px}
+.res h3 span{color:var(--faint);font-family:'JetBrains Mono',monospace;text-transform:none;letter-spacing:0}
+.wx{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.wx .temp{font-family:'Instrument Serif',serif;font-size:56px;line-height:1}
+.wx .where{font-weight:600}
+.wx .cond{color:var(--mute);font-size:14px;margin-top:2px}
+.days{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.day{background:color-mix(in oklab,var(--weather) 7%,var(--paper));border-radius:12px;padding:9px 10px;font-size:12px;color:var(--mute)}
+.day b{display:block;color:var(--ink);font-weight:600;font-size:13px;margin-bottom:2px}
+.news{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.news a{text-decoration:none;font-weight:500;line-height:1.4}
+.news a:hover{color:var(--news)}
+.news small{display:block;color:var(--faint);font-size:12px;margin-top:2px}
+.kn a{font-weight:600;text-decoration:none}
+.kn a:hover{color:var(--knowledge)}
+.kn p{margin:6px 0 0;color:var(--mute);line-height:1.55;font-size:14px;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
+.bad{color:var(--news);font-size:14px}
+.placeholder{color:var(--faint);font-size:14px;line-height:1.6;border:1.5px dashed var(--line2);border-radius:18px;padding:22px}
+
+/* log */
+details.log{margin-top:18px;background:var(--paper);border-radius:18px;box-shadow:var(--shadow)}
+details.log summary{cursor:pointer;padding:14px 20px;font-size:13px;color:var(--mute);list-style:none;display:flex;justify-content:space-between}
+details.log summary::-webkit-details-marker{display:none}
+details.log summary::after{content:"show ↓"}
+details.log[open] summary::after{content:"hide ↑"}
+.log ol{list-style:none;margin:0;padding:0 20px 16px;font:12px/1.55 'JetBrains Mono',monospace;max-height:340px;overflow:auto}
+.log li{display:grid;grid-template-columns:58px 130px minmax(0,1fr);gap:10px;padding:5px 0;border-top:1px solid var(--line)}
+.log .t{color:var(--faint)}
+.log .k{color:var(--c,var(--mute))}
+.log .d{color:var(--mute);overflow-wrap:anywhere}
+.log pre{margin:6px 0 0;white-space:pre-wrap;overflow-wrap:anywhere;max-height:200px;overflow:auto;background:var(--bg);padding:8px;border-radius:8px;color:var(--ink)}
+
+/* footer */
+.how{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:18px;margin:56px 0 24px}
+.how div{padding:20px;border-radius:18px;background:color-mix(in oklab,var(--paper) 60%,transparent);border:1px solid var(--line)}
+.how h4{margin:0 0 6px;font-family:'Instrument Serif',serif;font-weight:400;font-size:24px}
+.how p{margin:0;color:var(--mute);line-height:1.6;font-size:14px}
+.foot{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;padding:22px 0 40px;border-top:1px solid var(--line);color:var(--faint);font-size:13px}
+.foot a{text-decoration:none;color:var(--mute)}
+@media (max-width:640px){.stage{border-radius:20px;padding:10px 6px 4px;overflow-x:auto}.stage svg{min-width:640px}.node .title{font-size:16px}.node .stat{font-size:13px}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header class="mono">
-    <a href="https://unnatibshah.github.io/">← unnati.shah</a>
-    <nav><span id="srv" style="color:var(--faint)"></span><a id="cards" href="/api/agents" target="_blank" rel="noopener">agent cards</a><a href="https://github.com/unnatibshah/Adaptive-Insight-Orchestrator-" target="_blank" rel="noopener">source ↗</a></nav>
+  <header class="top">
+    <a class="brand" href="./"><i></i>Agent Orchestrator</a>
+    <nav>
+      <span class="pill" id="srv">server</span>
+      <a id="cards" href="/api/agents" target="_blank" rel="noopener">Agent cards</a>
+      <a href="https://github.com/unnatibshah/Adaptive-Insight-Orchestrator-" target="_blank" rel="noopener">GitHub ↗</a>
+      <a href="https://unnatibshah.github.io/">Unnati Shah</a>
+    </nav>
   </header>
 
-  <main>
-    <span class="eyebrow mono">// adaptive insight orchestrator</span>
-    <h1>One question.<br>Many agents.</h1>
-    <p class="lede">A LangGraph planner reads three agents' A2A cards, calls their MCP tools in parallel, and writes an answer grounded only in what the tools returned. Ask about weather, news, or any person, place or topic, and watch every step.</p>
-
-    <form id="f" autocomplete="off">
-      <span class="mono" aria-hidden="true">/</span>
-      <input id="q" maxlength="300" placeholder="Ask something that needs a few agents…" aria-label="Your question">
-      <button id="go" type="submit">run graph ↵</button>
-    </form>
-    <div class="examples" id="ex"><span class="label mono">try</span></div>
-
-    <div class="graph" aria-hidden="true">
-      <div class="node" id="n-plan"><div><b>plan</b><small>gpt-oss-20b · reads A2A cards</small></div><span class="st">idle</span></div>
-      <div class="edge" id="e1"></div>
-      <div class="agents">
-        <div class="node" id="n-weather"><div><b>weather-agent</b><small>mcp · get_weather · Open-Meteo</small></div><span class="st">idle</span></div>
-        <div class="node" id="n-news"><div><b>news-agent</b><small>mcp · get_news · Google News</small></div><span class="st">idle</span></div>
-        <div class="node" id="n-knowledge"><div><b>knowledge-agent</b><small>mcp · get_background · Wikipedia</small></div><span class="st">idle</span></div>
-      </div>
-      <div class="edge" id="e2"></div>
-      <div class="node" id="n-synthesize"><div><b>synthesize</b><small>gpt-oss-120b · grounded answer</small></div><span class="st">idle</span></div>
+  <section class="hero">
+    <span class="kicker"><b>LangGraph</b> · MCP · A2A · Groq</span>
+    <h1>Ask once.<br><em>Watch the agents work.</em></h1>
+    <p class="sub">A planner reads each agent's card, sends weather, news and knowledge agents off in parallel, and writes an answer only from what they bring back.</p>
+    <div class="ask">
+      <form id="f" autocomplete="off">
+        <input id="q" maxlength="300" placeholder="e.g. Should I pack an umbrella for London this week?" aria-label="Your question">
+        <button id="go" type="submit">Run agents</button>
+      </form>
+      <div class="chips" id="ex"></div>
     </div>
+  </section>
 
-    <div class="out">
-      <section class="panel" aria-live="polite">
-        <h2><span>answer</span><span id="total"></span></h2>
-        <div class="answer empty" id="answer">Run the graph to see an answer here.</div>
-        <div class="meta" id="meta" hidden></div>
-      </section>
-      <section class="panel">
-        <h2><span>trace</span><span id="count"></span></h2>
-        <ol class="trace" id="trace"><li><span class="t">—</span><span class="k">idle</span><span class="d">Events from each node appear here as the graph runs.</span></li></ol>
-      </section>
+  <section class="stage" aria-label="Live agent graph">
+    <svg viewBox="0 0 1000 385" id="g" role="img" aria-label="Graph: question, planner, three agents, writer">
+      <path class="path" id="p-q" d="M120 180 L245 180"/>
+      <path class="path" id="p-weather" d="M335 180 C 450 180, 470 60, 592 60"/>
+      <path class="path" id="p-news" d="M335 180 L 592 180"/>
+      <path class="path" id="p-knowledge" d="M335 180 C 450 180, 470 300, 592 300"/>
+      <path class="path" id="r-weather" d="M668 60 C 780 60, 760 180, 835 180"/>
+      <path class="path" id="r-news" d="M668 180 L 835 180"/>
+      <path class="path" id="r-knowledge" d="M668 300 C 780 300, 760 180, 835 180"/>
+
+      <g class="node" id="n-q" style="color:var(--ink)" transform="translate(80 180)">
+        <circle class="halo" r="40"/><circle class="disc" r="34"/><circle class="ring" r="40"/>
+        <path class="icon" d="M-11 -6 h22 a4 4 0 0 1 4 4 v9 a4 4 0 0 1 -4 4 h-12 l-7 6 v-6 h-3 a4 4 0 0 1 -4 -4 v-9 a4 4 0 0 1 4 -4z"/>
+        <text class="title" y="62" text-anchor="middle">You</text><text class="stat" y="80" text-anchor="middle" id="s-q">question</text>
+      </g>
+      <g class="node" id="n-plan" style="color:var(--plan)" transform="translate(290 180)">
+        <circle class="halo" r="50"/><circle class="disc" r="42"/><circle class="ring" r="50"/>
+        <path class="icon" d="M-12 -10 a4 4 0 1 0 0.1 0 M12 -10 a4 4 0 1 0 0.1 0 M0 12 a4 4 0 1 0 0.1 0 M-9 -5 L-2 7 M9 -5 L2 7 M-8 -10 H8"/>
+        <text class="title" y="72" text-anchor="middle">Planner</text><text class="stat" y="90" text-anchor="middle" id="s-plan">gpt-oss-20b</text>
+      </g>
+      <g class="node" id="n-weather" style="color:var(--weather)" transform="translate(630 60)">
+        <circle class="halo" r="38"/><circle class="disc" r="30"/><circle class="ring" r="38"/>
+        <path class="icon" d="M0 -6 a6 6 0 1 0 0.1 0 M0 -16 v4 M0 12 v4 M-16 0 h4 M12 0 h4 M-11 -11 l3 3 M8 8 l3 3 M11 -11 l-3 3 M-8 8 l-3 3"/>
+        <text class="title" y="54" text-anchor="middle">Weather agent</text><text class="stat" y="71" text-anchor="middle" id="s-weather">Open-Meteo</text>
+      </g>
+      <g class="node" id="n-news" style="color:var(--news)" transform="translate(630 180)">
+        <circle class="halo" r="38"/><circle class="disc" r="30"/><circle class="ring" r="38"/>
+        <path class="icon" d="M-12 -10 h18 v20 h-18 a3 3 0 0 1 -3 -3 v-14 a3 3 0 0 1 3 -3z M6 -4 h5 v11 a3 3 0 0 1 -5 0 M-9 -4 h11 M-9 1 h11 M-9 6 h7"/>
+        <text class="title" y="54" text-anchor="middle">News agent</text><text class="stat" y="71" text-anchor="middle" id="s-news">Google News</text>
+      </g>
+      <g class="node" id="n-knowledge" style="color:var(--knowledge)" transform="translate(630 300)">
+        <circle class="halo" r="38"/><circle class="disc" r="30"/><circle class="ring" r="38"/>
+        <path class="icon" d="M0 -9 C-5 -13 -12 -12 -14 -10 v19 c2 -2 9 -3 14 1 c5 -4 12 -3 14 -1 v-19 c-2 -2 -9 -3 -14 1z M0 -9 v19"/>
+        <text class="title" y="54" text-anchor="middle">Knowledge agent</text><text class="stat" y="71" text-anchor="middle" id="s-knowledge">Wikipedia</text>
+      </g>
+      <g class="node" id="n-synthesize" style="color:var(--synth)" transform="translate(880 180)">
+        <circle class="halo" r="50"/><circle class="disc" r="42"/><circle class="ring" r="50"/>
+        <path class="icon" d="M-12 12 l4 -1 l15 -15 a2.5 2.5 0 0 0 -3 -3 l-15 15z M3 -10 l3 3 M-12 15 h22"/>
+        <text class="title" y="72" text-anchor="middle">Writer</text><text class="stat" y="90" text-anchor="middle" id="s-synthesize">gpt-oss-120b</text>
+      </g>
+      <g id="dots"></g>
+    </svg>
+    <div class="caption" id="cap">Pick an example or ask your own question to see the graph run.</div>
+  </section>
+
+  <section class="results">
+    <div class="card">
+      <div class="label"><span>Answer</span><span id="total"></span></div>
+      <div class="answer empty" id="answer">The answer will appear here, written only from what the agents return.</div>
+      <div class="grounding" id="grounding" hidden></div>
     </div>
-  </main>
+    <div class="stack" id="stack"><div class="placeholder">Each agent's findings land here as cards: the forecast, the headlines, the background.</div></div>
+  </section>
 
-  <footer>
-    <div><h3>How it works</h3><p>A LangGraph state graph runs <span class="mono">plan → agents → synthesize</span>. The planner picks agents from their A2A cards and MCP tool schemas; LangGraph's <span class="mono">Send</span> fans the calls out in parallel; the writer answers only from the tool results.</p></div>
-    <div><h3>Guardrails</h3><p>Planner output is validated against each tool's schema, with keyword routing as a fallback. Every tool call has a timeout and a cache, a failed agent still yields a partial answer, and requests are rate limited.</p></div>
-    <div><h3>Stack</h3><p>Python · FastAPI · LangGraph · MCP · A2A agent cards · Groq (gpt-oss) · Open-Meteo · Google News · Wikipedia. Built by <a href="https://unnatibshah.github.io/">Unnati Shah</a>.</p></div>
+  <details class="log"><summary><span>Event log <span id="count"></span></span></summary><ol id="log"></ol></details>
+
+  <section class="how">
+    <div><h4>Plan</h4><p>A LangGraph planner (gpt-oss-20b on Groq) reads each agent's A2A card and MCP tool schema and returns a plan. The plan is checked against the schemas, with keyword routing as a fallback.</p></div>
+    <div><h4>Fan out</h4><p>LangGraph's <span class="mono">Send</span> runs the agent calls in parallel. Each agent owns an MCP server backed by a keyless public API, with timeouts and caching on every call.</p></div>
+    <div><h4>Answer</h4><p>The writer (gpt-oss-120b) answers only from the tool results. If an agent fails, you still get the rest; if the model is down, a template answer is built from the same data.</p></div>
+  </section>
+
+  <footer class="foot">
+    <span>Built by <a href="https://unnatibshah.github.io/">Unnati Shah</a></span>
+    <span>Data: Open-Meteo · Google News · Wikipedia (CC BY-SA)</span>
   </footer>
 </div>
+
 <script>
 const EXAMPLES = ['Should I pack an umbrella for London this week?', 'Compare the weather in Mumbai and Delhi',
-  "What's the latest news on renewable energy?", 'Tell me about Tokyo, its weather and what is in the news there', 'Who was Ada Lovelace?'];
-const AGENT_IDS = {'weather-agent': 'weather', 'news-agent': 'news', 'knowledge-agent': 'knowledge'};
+  "What's the latest news on renewable energy?", 'Tell me about Tokyo, its weather and the news there', 'Who was Ada Lovelace?'];
+const AG = { 'weather-agent': 'weather', 'news-agent': 'news', 'knowledge-agent': 'knowledge' };
+const COLOR = { weather: 'var(--weather)', news: 'var(--news)', knowledge: 'var(--knowledge)', plan: 'var(--plan)', synthesize: 'var(--synth)', q: 'var(--ink)' };
+const NAME = { weather: 'Weather', news: 'News', knowledge: 'Knowledge' };
 const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
+const safeUrl = u => /^https?:\/\//i.test(u || '') ? esc(u) : '#';
+
 // On GitHub Pages the UI is static and the API runs on Render's free tier, which sleeps when idle.
-const API = location.hostname === 'unnatibshah.github.io' ? 'https://RENDER_HOST' : '';
+const API = location.hostname === 'unnatibshah.github.io' ? 'https://agent-orchestrator-osvq.onrender.com' : '';
 $('cards').href = API + '/api/agents';
-let awake = !API;
-const wake = API ? (async () => {
-  $('srv').textContent = 'server: waking up…';
+let awake = false;
+const setSrv = (cls, text) => { $('srv').className = 'pill ' + cls; $('srv').textContent = text; };
+const wake = (async () => {
+  setSrv('waking', 'waking server…');
   for (let i = 0; i < 40; i++) {
-    try { if ((await fetch(API + '/health', { cache: 'no-store' })).ok) { awake = true; $('srv').textContent = 'server: ready'; return; } } catch {}
+    try { if ((await fetch(API + '/health', { cache: 'no-store' })).ok) { awake = true; setSrv('ready', 'server ready'); return; } } catch {}
     await new Promise(r => setTimeout(r, 3000));
   }
-  $('srv').textContent = 'server: unavailable';
-})() : Promise.resolve();
-const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
-let t0 = 0, n = 0, running = false;
-const calls = {};
+  setSrv('down', 'server unavailable');
+})();
 
-function setNode(id, cls, text) { const el = $('n-' + id); el.className = 'node ' + (cls || ''); el.querySelector('.st').textContent = text; }
-function log(kind, detail, fail) {
-  if (!n++) $('trace').innerHTML = '';
-  $('trace').insertAdjacentHTML('beforeend', `<li><span class="t">+${((performance.now() - t0) / 1000).toFixed(2)}s</span><span class="k${fail ? ' fail' : ''}">${esc(kind)}</span><span class="d">${detail}</span></li>`);
-  $('trace').scrollTop = $('trace').scrollHeight; $('count').textContent = n + ' events';
+let t0 = 0, n = 0, running = false, calls = {}, results = [];
+
+function node(id, cls, stat) { const g = $('n-' + id); g.setAttribute('class', 'node ' + (cls || '')); if (stat != null) $('s-' + id).textContent = stat; }
+function lit(id, on) { const p = $(id); p.classList.toggle('lit', on); p.style.stroke = on ? COLOR[id.split('-')[1]] || 'var(--plan)' : ''; }
+function dot(pathId, color) {
+  const d = $(pathId).getAttribute('d'), ns = 'http://www.w3.org/2000/svg';
+  const c = document.createElementNS(ns, 'circle'); c.setAttribute('r', 6); c.setAttribute('fill', color);
+  const m = document.createElementNS(ns, 'animateMotion'); m.setAttribute('dur', '0.7s'); m.setAttribute('fill', 'freeze'); m.setAttribute('path', d); m.setAttribute('begin', 'indefinite');
+  c.appendChild(m); $('dots').appendChild(c); m.beginElement(); setTimeout(() => c.remove(), 800);
 }
-const args = a => Object.entries(a).map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', ');
+function caption(html) { $('cap').innerHTML = html; }
+function log(kind, color, detail) {
+  n++; $('count').textContent = `· ${n} events`;
+  $('log').insertAdjacentHTML('beforeend', `<li><span class="t">+${((performance.now() - t0) / 1000).toFixed(2)}s</span><span class="k" style="--c:${color}">${esc(kind)}</span><span class="d">${detail}</span></li>`);
+}
+const fmtArgs = a => Object.values(a || {}).map(v => `"${v}"`).join(', ');
 
 function reset() {
-  ['plan', 'weather', 'news', 'knowledge', 'synthesize'].forEach(id => setNode(id, '', 'idle'));
-  ['e1', 'e2'].forEach(id => $(id).classList.remove('on'));
-  for (const k in calls) delete calls[k];
-  n = 0; $('trace').innerHTML = ''; $('count').textContent = ''; $('total').textContent = '';
-  $('answer').className = 'answer empty'; $('answer').textContent = 'Working…'; $('meta').hidden = true; $('meta').innerHTML = '';
+  ['q', 'plan', 'weather', 'news', 'knowledge', 'synthesize'].forEach(id => node(id, ''));
+  $('s-plan').textContent = 'gpt-oss-20b'; $('s-synthesize').textContent = 'gpt-oss-120b';
+  $('s-weather').textContent = 'Open-Meteo'; $('s-news').textContent = 'Google News'; $('s-knowledge').textContent = 'Wikipedia'; $('s-q').textContent = 'question';
+  document.querySelectorAll('.path').forEach(p => { p.classList.remove('lit'); p.style.stroke = ''; });
+  calls = {}; results = []; n = 0; $('log').innerHTML = ''; $('count').textContent = ''; $('total').textContent = '';
+  $('answer').className = 'answer empty'; $('answer').textContent = 'Thinking…'; $('grounding').hidden = true; $('grounding').innerHTML = '';
+  $('stack').innerHTML = '';
 }
 
-function onEvent(e, meta) {
-  if (e.type === 'node' && e.status === 'start') {
-    setNode(e.node, 'run', 'running…');
-    log(e.node, e.node === 'plan' ? 'reading agent cards and tool schemas' : 'writing an answer from tool results');
-    if (e.node === 'synthesize') $('e2').classList.add('on');
+function card(agent, e) {
+  const c = COLOR[agent], head = `<h3>${NAME[agent]}<span>${esc(fmtArgs(e.args))} · ${e.ms} ms</span></h3>`;
+  if (!e.ok) return `<div class="res" style="--c:${c}">${head}<div class="bad">${esc(e.error)}</div></div>`;
+  const d = e.data;
+  if (agent === 'weather') {
+    const days = (d.forecast || []).map(f => `<div class="day"><b>${new Date(f.date + 'T12:00').toLocaleDateString(undefined, { weekday: 'short' })}</b>${Math.round(f.min_c)}° / ${Math.round(f.max_c)}°<br>${esc(f.conditions)} · ${f.rain_chance_pct ?? 0}%</div>`).join('');
+    return `<div class="res" style="--c:${c}">${head}<div class="wx"><span class="temp">${Math.round(d.now.temp_c)}°</span><div><div class="where">${esc(d.place)}</div><div class="cond">${esc(d.now.conditions)} · humidity ${d.now.humidity_pct}% · wind ${d.now.wind_kmh} km/h</div></div></div><div class="days">${days}</div></div>`;
+  }
+  if (agent === 'news') return `<div class="res" style="--c:${c}">${head}<ul class="news">${d.articles.slice(0, 4).map(a => `<li><a href="${safeUrl(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a><small>${esc(a.source)} · ${esc(a.published)}</small></li>`).join('')}</ul></div>`;
+  return `<div class="res kn" style="--c:${c}">${head}<a href="${safeUrl(d.url)}" target="_blank" rel="noopener">${esc(d.title)} ↗</a><p>${esc(d.summary)}</p></div>`;
+}
+
+function onEvent(e) {
+  if (e.type === 'node' && e.status === 'start' && e.node === 'plan') {
+    node('q', 'done', 'asked'); lit('p-q', true); dot('p-q', 'var(--ink)'); node('plan', 'run', 'planning…');
+    caption('<b>Planner</b> is reading the agent cards and deciding who to call…'); log('plan', COLOR.plan, 'reading A2A cards and MCP tool schemas');
   } else if (e.type === 'plan') {
-    setNode('plan', 'done', `✓ ${e.ms} ms`); $('e1').classList.add('on');
+    node('plan', 'done', `${e.ms} ms`);
     const used = new Set(e.tasks.map(t => t.agent));
-    ['weather', 'news', 'knowledge'].forEach(id => { if (!used.has(id)) setNode(id, 'skip', 'not needed'); });
-    log('plan', `${e.source === 'llm' ? esc(e.model) : 'keyword fallback'} chose <b>${e.tasks.length}</b> call${e.tasks.length === 1 ? '' : 's'}${e.reason ? ' · ' + esc(e.reason) : ''}`);
-    meta.push(`planner: ${e.source === 'llm' ? e.model : 'keyword fallback'}`);
+    ['weather', 'news', 'knowledge'].forEach(id => { if (!used.has(id)) node(id, 'skip', 'not needed'); });
+    const who = [...used].map(a => NAME[a].toLowerCase()).join(', ');
+    caption(e.tasks.length ? `Planner chose <b>${e.tasks.length} call${e.tasks.length > 1 ? 's' : ''}</b> (${esc(who)})${e.source === 'llm' ? '' : ' using keyword fallback'}. Running them in parallel…` : 'No agents needed for this one. Going straight to the writer…');
+    log('plan', COLOR.plan, `${e.source === 'llm' ? esc(e.model) : 'keyword fallback'} → ${e.tasks.length} task(s)${e.reason ? ' · ' + esc(e.reason) : ''}`);
   } else if (e.type === 'tool') {
-    const id = AGENT_IDS[e.agent], c = calls[id] ??= { total: 0, done: 0, fail: 0 };
+    const id = AG[e.agent], c = calls[id] ??= { total: 0, done: 0, fail: 0 };
     if (e.status === 'start') {
-      c.total++; setNode(id, 'run', c.total > 1 ? `running ×${c.total}` : 'running…');
-      log(e.agent, `→ ${esc(e.server)}.${esc(e.tool)}(${esc(args(e.args))})`);
+      c.total++; node(id, 'run', c.total > 1 ? `calling ×${c.total}` : 'calling…'); lit('p-' + id, true); dot('p-' + id, COLOR[id]);
+      log(e.agent, COLOR[id], `→ ${esc(e.server)}.${esc(e.tool)}(${esc(fmtArgs(e.args))})`);
     } else {
       c.done++; if (!e.ok) c.fail++;
-      if (c.done === c.total) setNode(id, c.fail === c.total ? 'fail' : 'done', `${c.fail ? '⚠' : '✓'}${c.total > 1 ? ' ×' + c.total : ''} ${e.ms} ms`);
-      const body = e.ok ? JSON.stringify(e.data, null, 2) : e.error;
-      log(e.agent, `<details><summary>← ${e.ok ? 'ok' : 'failed'} · ${e.ms} ms · ${esc(args(e.args))}</summary><pre>${esc(body)}</pre></details>`, !e.ok);
+      if (c.done === c.total) { node(id, c.fail === c.total ? 'fail' : 'done', `${c.fail ? '⚠ ' : ''}${e.ms} ms${c.total > 1 ? ' · ×' + c.total : ''}`); lit('r-' + id, true); dot('r-' + id, COLOR[id]); }
+      results.push({ agent: id, ok: e.ok });
+      $('stack').insertAdjacentHTML('beforeend', card(id, e));
+      log(e.agent, COLOR[id], `<details><summary>← ${e.ok ? 'ok' : 'failed'} · ${e.ms} ms</summary><pre>${esc(e.ok ? JSON.stringify(e.data, null, 2) : e.error)}</pre></details>`);
     }
+  } else if (e.type === 'node' && e.node === 'synthesize') {
+    node('synthesize', 'run', 'writing…'); caption('<b>Writer</b> is composing an answer from the agents\' results…');
+    if (!results.length) $('stack').innerHTML = '<div class="placeholder">No agents were needed for this question.</div>';
+    log('writer', COLOR.synthesize, 'writing a grounded answer');
   } else if (e.type === 'answer') {
-    setNode('synthesize', 'done', `✓ ${e.ms} ms`);
-    $('answer').className = 'answer'; $('answer').textContent = e.text;
-    meta.push(`writer: ${e.source === 'llm' ? e.model : 'template (model unavailable)'}`);
-    log('synthesize', `answer ready${e.source === 'llm' ? '' : ' (template fallback)'}`);
+    node('synthesize', 'done', `${e.ms} ms`); typeOut(e.text);
+    const tags = results.map(r => `<span class="tag" style="--c:${COLOR[r.agent]}">${NAME[r.agent]}${r.ok ? '' : ' (failed)'}</span>`).join('');
+    $('grounding').innerHTML = (results.length ? `Grounded in ${tags}` : '<span>No tools needed.</span>') + `<span style="margin-left:auto">${e.source === 'llm' ? 'written by ' + esc(e.model) : 'template answer (model unavailable)'}</span>`;
+    $('grounding').hidden = false; log('writer', COLOR.synthesize, 'answer ready');
   } else if (e.type === 'done') {
-    $('total').textContent = `${(e.ms / 1000).toFixed(2)} s total`;
-    $('meta').innerHTML = meta.map(m => `<span>${esc(m)}</span>`).join(''); $('meta').hidden = false;
-    log('done', `graph finished in ${(e.ms / 1000).toFixed(2)} s`);
-  } else if (e.type === 'error') {
-    showError(e.message);
-  }
+    $('total').textContent = `${(e.ms / 1000).toFixed(2)} s`; caption(`Done in <b>${(e.ms / 1000).toFixed(2)} s</b>.`); log('done', 'var(--ink)', 'graph finished');
+  } else if (e.type === 'error') showError(e.message);
 }
 
-function showError(msg) { $('answer').className = 'answer err'; $('answer').textContent = msg; log('error', esc(msg), true); }
+function typeOut(text) {
+  const el = $('answer'); el.className = 'answer typing'; el.textContent = '';
+  const words = text.split(/(\s+)/); let i = 0;
+  const step = () => { el.textContent += words.slice(i, i + 3).join(''); i += 3; if (i < words.length) setTimeout(step, 18); else el.className = 'answer'; };
+  step();
+}
+function showError(msg) { $('answer').className = 'answer err'; $('answer').textContent = msg; caption(esc(msg)); }
 
-async function runGraph(q) {
+async function run(q) {
   q = q.trim(); if (q.length < 2 || running) return;
   running = true; $('go').disabled = true; reset(); t0 = performance.now();
   history.replaceState(null, '', '?q=' + encodeURIComponent(q));
-  const meta = [];
+  document.querySelector('.stage').scrollIntoView({ behavior: 'smooth', block: 'start' });
   try {
-    if (!awake) { $('answer').textContent = 'Waking up the server. Free hosting sleeps when idle, so this can take up to a minute…'; await wake; }
+    if (!awake) { caption('Waking up the server. Free hosting sleeps when idle, so this can take up to a minute…'); await wake; }
     if (!awake) throw new Error('The server is unavailable right now. Please try again later.');
     const r = await fetch(API + '/api/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) });
     if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(typeof j.detail === 'string' ? j.detail : 'Request failed (' + r.status + ').'); }
@@ -219,16 +358,16 @@ async function runGraph(q) {
     for (;;) {
       const { value, done } = await reader.read(); if (done) break;
       buf += dec.decode(value, { stream: true });
-      let i; while ((i = buf.indexOf('\n\n')) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 2); if (line.startsWith('data: ')) onEvent(JSON.parse(line.slice(6)), meta); }
+      let i; while ((i = buf.indexOf('\n\n')) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 2); if (line.startsWith('data: ')) onEvent(JSON.parse(line.slice(6))); }
     }
   } catch (err) { showError(err.message || 'Network error.'); }
   running = false; $('go').disabled = false;
 }
 
-$('f').addEventListener('submit', e => { e.preventDefault(); runGraph($('q').value); });
-$('ex').insertAdjacentHTML('beforeend', EXAMPLES.map(x => `<button type="button" class="chip">${esc(x)}</button>`).join(''));
-$('ex').addEventListener('click', e => { if (e.target.classList.contains('chip')) { $('q').value = e.target.textContent; runGraph($('q').value); } });
-const q0 = new URLSearchParams(location.search).get('q'); if (q0) { $('q').value = q0; runGraph(q0); }
+$('f').addEventListener('submit', e => { e.preventDefault(); run($('q').value); });
+$('ex').innerHTML = EXAMPLES.map(x => `<button type="button" class="chip">${esc(x)}</button>`).join('');
+$('ex').addEventListener('click', e => { if (e.target.classList.contains('chip')) { $('q').value = e.target.textContent; run($('q').value); } });
+const q0 = new URLSearchParams(location.search).get('q'); if (q0) { $('q').value = q0; run(q0); }
 </script>
 </body>
 </html>
