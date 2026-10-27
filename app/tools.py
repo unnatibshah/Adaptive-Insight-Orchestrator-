@@ -26,8 +26,14 @@ async def _get(url: str, params: dict, ttl: float, as_json: bool = True) -> Any:
         return hit[1]
     async with httpx.AsyncClient(timeout=TIMEOUT, headers=UA) as client:
         r = await client.get(url, params=params)
-        r.raise_for_status()
+    host = httpx.URL(url).host
+    if r.status_code == 429:
+        raise RuntimeError(f"{host} is rate limiting requests right now")
+    r.raise_for_status()
+    try:
         data = r.json() if as_json else r.text
+    except ValueError:
+        raise RuntimeError(f"{host} returned an unexpected response ({r.headers.get('content-type', 'unknown type')})") from None
     _cache[key] = (time.monotonic() + ttl, data)
     return data
 
