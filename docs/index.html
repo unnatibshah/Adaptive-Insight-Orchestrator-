@@ -84,7 +84,7 @@ footer p{margin:0}
 <div class="wrap">
   <header class="mono">
     <a href="https://unnatibshah.github.io/">← unnati.shah</a>
-    <nav><a href="/api/agents" target="_blank" rel="noopener">agent cards</a><a href="https://github.com/unnatibshah/Adaptive-Insight-Orchestrator-" target="_blank" rel="noopener">source ↗</a></nav>
+    <nav><span id="srv" style="color:var(--faint)"></span><a id="cards" href="/api/agents" target="_blank" rel="noopener">agent cards</a><a href="https://github.com/unnatibshah/Adaptive-Insight-Orchestrator-" target="_blank" rel="noopener">source ↗</a></nav>
   </header>
 
   <main>
@@ -135,6 +135,18 @@ const EXAMPLES = ['Should I pack an umbrella for London this week?', 'Compare th
   "What's the latest news on renewable energy?", 'Tell me about Tokyo, its weather and what is in the news there', 'Who was Ada Lovelace?'];
 const AGENT_IDS = {'weather-agent': 'weather', 'news-agent': 'news', 'knowledge-agent': 'knowledge'};
 const $ = id => document.getElementById(id);
+// On GitHub Pages the UI is static and the API runs on Render's free tier, which sleeps when idle.
+const API = location.hostname === 'unnatibshah.github.io' ? 'https://RENDER_HOST' : '';
+$('cards').href = API + '/api/agents';
+let awake = !API;
+const wake = API ? (async () => {
+  $('srv').textContent = 'server: waking up…';
+  for (let i = 0; i < 40; i++) {
+    try { if ((await fetch(API + '/health', { cache: 'no-store' })).ok) { awake = true; $('srv').textContent = 'server: ready'; return; } } catch {}
+    await new Promise(r => setTimeout(r, 3000));
+  }
+  $('srv').textContent = 'server: unavailable';
+})() : Promise.resolve();
 const esc = s => String(s).replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 let t0 = 0, n = 0, running = false;
 const calls = {};
@@ -199,7 +211,9 @@ async function runGraph(q) {
   history.replaceState(null, '', '?q=' + encodeURIComponent(q));
   const meta = [];
   try {
-    const r = await fetch('/api/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) });
+    if (!awake) { $('answer').textContent = 'Waking up the server. Free hosting sleeps when idle, so this can take up to a minute…'; await wake; }
+    if (!awake) throw new Error('The server is unavailable right now. Please try again later.');
+    const r = await fetch(API + '/api/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) });
     if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(typeof j.detail === 'string' ? j.detail : 'Request failed (' + r.status + ').'); }
     const reader = r.body.getReader(), dec = new TextDecoder(); let buf = '';
     for (;;) {

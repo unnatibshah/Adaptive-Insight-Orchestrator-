@@ -8,6 +8,7 @@ from collections import defaultdict, deque
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -18,13 +19,19 @@ PER_MINUTE, PER_DAY = 6, 60
 MAX_CONCURRENT_RUNS = 3
 
 app = FastAPI(title="Adaptive Insight Orchestrator", docs_url="/api/docs", redoc_url=None)
+# The UI is also served from GitHub Pages (always up, even while this free-tier server sleeps).
+app.add_middleware(CORSMiddleware, allow_origins=["https://unnatibshah.github.io"], allow_methods=["GET", "POST"],
+                   allow_headers=["Content-Type"])
 _running = asyncio.Semaphore(MAX_CONCURRENT_RUNS)
 # ponytail: per-process rate limit; one instance is enough for a demo. Use Redis if it ever scales out.
 _hits: dict[str, deque] = defaultdict(deque)
 
 
 def client_ip(req: Request) -> str:
-    # The hosting proxy appends the real client IP last; earlier entries are client-supplied and spoofable.
+    # Render sits behind Cloudflare, which sets CF-Connecting-IP itself. Otherwise the hosting proxy appends
+    # the real client IP last in X-Forwarded-For; earlier entries are client-supplied and spoofable.
+    if ip := req.headers.get("cf-connecting-ip"):
+        return ip.strip()
     fwd = req.headers.get("x-forwarded-for")
     return fwd.split(",")[-1].strip() if fwd else (req.client.host if req.client else "unknown")
 
@@ -85,7 +92,7 @@ def health():
     return {"status": "ok"}
 
 
-WEB = Path(__file__).resolve().parent.parent / "web"
+WEB = Path(__file__).resolve().parent.parent / "docs"
 
 
 @app.get("/")

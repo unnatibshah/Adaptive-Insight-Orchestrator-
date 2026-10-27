@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: agent-orchestrator
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
