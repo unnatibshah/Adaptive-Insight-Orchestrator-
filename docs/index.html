@@ -262,7 +262,11 @@ const wake = (async () => {
 
 let t0 = 0, n = 0, running = false, calls = {}, results = [];
 
-function node(id, cls, stat) { const g = $('n-' + id); g.setAttribute('class', 'node ' + (cls || '')); if (stat != null) $('s-' + id).textContent = stat; }
+function node(id, cls, stat) {
+  const g = $('n-' + id); g.setAttribute('class', 'node ' + (cls || '')); if (stat != null) $('s-' + id).textContent = stat;
+  const st = document.querySelector('.stage');  // on phones the diagram scrolls sideways: keep the active node in view
+  if (cls === 'run' && st.scrollWidth > st.clientWidth) { const r = g.getBoundingClientRect(), sr = st.getBoundingClientRect(); st.scrollBy({ left: r.left + r.width / 2 - (sr.left + sr.width / 2), behavior: 'smooth' }); }
+}
 function lit(id, on) { const p = $(id); p.classList.toggle('lit', on); p.style.stroke = on ? COLOR[id.split('-')[1]] || 'var(--plan)' : ''; }
 function dot(pathId, color) {
   const d = $(pathId).getAttribute('d'), ns = 'http://www.w3.org/2000/svg';
