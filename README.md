@@ -2,7 +2,7 @@
 
 **One question. Many agents.** A LangGraph planner reads three agents' A2A cards, calls their MCP tools in parallel, and writes an answer grounded only in what the tools returned. The UI streams every step: the plan, each tool call with its arguments and raw result, timings, and the final answer.
 
-**Live demo: _coming soon_**
+**[Try the live demo →](https://unnatibshah.github.io/Adaptive-Insight-Orchestrator-/)** · UI on GitHub Pages, API on Render's free tier (the first run after a quiet spell takes up to a minute while the server wakes).
 
 ```
             ┌─▶ weather-agent ── MCP get_weather ── Open-Meteo ─┐
@@ -20,6 +20,7 @@
 | **A2A agent cards** | Each agent publishes a card at `/agents/<id>/.well-known/agent-card.json`; all cards are listed at `/api/agents`. |
 | **Writer** | `openai/gpt-oss-120b` answers only from the tool results. If it's unavailable, a deterministic template answer is built from the same data. |
 | **Data** | Keyless public sources: Open-Meteo (weather), Google News RSS (news), Wikipedia (background). |
+| **Hosting** | The UI (`docs/`) is served by GitHub Pages, so it loads instantly; it pings `/health` and shows a wake-up status while the Render API (`render.yaml`, Docker) starts. CORS allows only the Pages origin. |
 
 ## Guardrails
 
